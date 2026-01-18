@@ -1,81 +1,78 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dual Camera Capture</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: white; }
-        .cam-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-        video { width: 45%; border: 2px solid #fff; border-radius: 8px; background: #000; }
-        canvas { display: none; } /* Tersembunyi, hanya untuk proses ambil foto */
-        .controls { margin-top: 20px; }
-        button { padding: 15px 25px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px; border: none; }
-        .btn-capture { background: #e74c3c; color: white; }
-        #gallery img { width: 45%; margin: 5px; border: 2px solid gold; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual Camera Absensi</title>
+<style>
+  video {
+    width: 45%;
+    border: 2px solid #333;
+    border-radius: 8px;
+    margin: 5px;
+  }
+  .container {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+  }
+</style>
 </head>
+
 <body>
+<h2>Absensi Dual Kamera (Depan + Belakang)</h2>
 
-    <h2>Dual Camera Live</h2>
-    
-    <div class="cam-container">
-        <video id="frontCam" autoplay playsinline></video>
-        <video id="backCam" autoplay playsinline></video>
-    </div>
+<div class="container">
+  <div>
+    <p>Kamera Belakang</p>
+    <video id="camBack" autoplay playsinline></video>
+  </div>
 
-    <div class="controls">
-        <button onclick="startDualCamera()">1. Aktifkan Kamera</button>
-        <button class="btn-capture" onclick="takePhotos()">2. Ambil Foto Bersamaan</button>
-    </div>
+  <div>
+    <p>Kamera Depan</p>
+    <video id="camFront" autoplay playsinline></video>
+  </div>
+</div>
 
-    <h3>Hasil Foto:</h3>
-    <div id="gallery"></div>
+<script>
+async function startDualCamera() {
+  // Enumerate semua device kamera
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  
+  let frontCamId = null;
+  let backCamId = null;
 
-    <canvas id="canvasFront"></canvas>
-    <canvas id="canvasBack"></canvas>
+  // Temukan ID kamera depan & belakang
+  devices.forEach(device => {
+    if (device.kind === "videoinput") {
+      if (device.label.toLowerCase().includes("front")) {
+        frontCamId = device.deviceId;
+      }
+      if (device.label.toLowerCase().includes("back") || device.label.toLowerCase().includes("rear")) {
+        backCamId = device.deviceId;
+      }
+    }
+  });
 
-    <script>
-        const frontVideo = document.getElementById('frontCam');
-        const backVideo = document.getElementById('backCam');
+  // Jika tidak terdeteksi, fallback ke facingMode
+  const frontStream = await navigator.mediaDevices.getUserMedia({
+    video: frontCamId ? {deviceId: {exact: frontCamId}} : {facingMode: "user"},
+    audio: false
+  });
 
-        async function startDualCamera() {
-            try {
-                // Minta akses kamera depan
-                const streamFront = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user" }
-                });
-                frontVideo.srcObject = streamFront;
+  const backStream = await navigator.mediaDevices.getUserMedia({
+    video: backCamId ? {deviceId: {exact: backCamId}} : {facingMode: {exact: "environment"}},
+    audio: false
+  });
 
-                // Minta akses kamera belakang
-                const streamBack = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { exact: "environment" } }
-                });
-                backVideo.srcObject = streamBack;
-            } catch (err) {
-                alert("Perangkat Anda mungkin tidak mendukung akses dua kamera sekaligus di browser.");
-                console.error(err);
-            }
-        }
+  document.getElementById("camFront").srcObject = frontStream;
+  document.getElementById("camBack").srcObject = backStream;
+}
 
-        function takePhotos() {
-            const gallery = document.getElementById('gallery');
-            gallery.innerHTML = ""; // Bersihkan galeri sebelumnya
-
-            [ {v: frontVideo, c: "canvasFront"}, {v: backVideo, c: "canvasBack"} ].forEach(item => {
-                const video = item.v;
-                const canvas = document.getElementById(item.c);
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                const context = canvas.getContext('2d');
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                const img = document.createElement('img');
-                img.src = canvas.toDataURL('image/png');
-                gallery.appendChild(img);
-            });
-        }
-    </script>
+startDualCamera().catch(err => {
+  console.error("Gagal mengakses kamera:", err);
+  alert("Browser/HP belum mendukung dual kamera.");
+});
+</script>
 </body>
 </html>
